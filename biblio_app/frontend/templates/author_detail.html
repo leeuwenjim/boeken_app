@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+     <div class="ui container">
+        <h1 class="ui header">{{ author.get_full_name }} {% if author.alias_for %}(<span onclick="location.href='{% url 'biblio-authors-details' author.alias_for.id %}'" style="cursor: pointer">{{ author.alias_for.get_full_name }}</span>){% endif %}
+            <div class="ui sub header">{{ author.book_set.count }} {% if author.book_set.count == 1 %}Boek{% else %}Boeken{% endif %}</div>
+        </h1>
+        {% if author.aliases_set.count %}
+        <h2 class="ui header">Aliases van deze schrijver:</h2>
+            <div class="ui middle aligned divided list">
+                {% for alias in author.aliases_set %}
+                    <div class="item">
+                        <div class="content">
+                            <a class="header" href="{% url 'biblio-authors-details' alias.id %}">{{ alias.get_full_name }}</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="ui hidden divider"></div>
+        Totaal aantal boeken met aliases: {{ author.book_count_total }}
+        {% endif %}
+    </div>
+
+
+
+    <div class="ui divider"></div>
+
+    <div class="ui container">
+        <h2>Boeken van deze schrijver</h2>
+        <div class="ui centered cards" id="author_books"></div>
+        <div class="ui hidden divider"></div>
+        <div class="ui center aligned container" id="author_books_navigation"></div>
+    </div>
+
+    <div class="ui hidden divider"></div>
+    </div>
+{% endblock %}
+
+{% block javascript %}
+    <script type="text/javascript" src="/static/js/book_pagination.js"></script>
+    <script>
+
+        var pagination = new BookPagination('/api/author/{{ author.id }}/books/', $('#author_books'), $('#author_books_navigation'), true);
+        pagination.load_page(1);
+    </script>
+{% endblock %}

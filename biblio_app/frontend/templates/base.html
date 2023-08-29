@@ -1,0 +1,102 @@
+<html>
+<head>
+    <title>Jim's bibliotheek</title>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.3/dist/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.2/dist/semantic.min.js"></script>
+
+    <style>
+        #banner {
+            background-image: url("/static/img/bieb_banner.jpg");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: cover;
+            position: relative;
+            width: 100%;
+            margin: 0px;
+            height: 200px;
+        }
+
+        #main_menu {
+            margin-top: 0px !important;
+            border-top-left-radius: 0px !important;
+            border-top-right-radius: 0px !important;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        #content_container {
+            flex: 1;
+        }
+        .card_image {
+            height: 400px!important;
+        }
+
+    </style>
+    {% block head %}
+
+    {% endblock %}
+</head>
+<body>
+<div id="content_container">
+<header id="banner"></header>
+<div class="ui inverted menu" id="main_menu">
+    <div class="ui container">
+        <a href="/" class="header item">Home</a>
+        <a href="/books/" class="item">Boeken</a>
+        <a href="/series/" class="item">Series</a>
+    </div>
+
+</div>
+
+{% if user.is_authenticated %}
+<div class="ui menu">
+    <div class="right menu">
+        {% block auth_items %}
+
+        {% endblock %}
+        <a class="item" href="/logout">Logout</a>
+    </div>
+</div>
+{% endif %}
+
+
+    {% block body %}
+    {% endblock %}
+</div>
+
+<div class="ui inverted vertical footer segment">
+    <div class="ui container">
+        <div class="ui stackable inverted divided equal height stackable grid">
+            <div class="four wide column">
+                <h4 class="ui inverted header">Eigenaar literaire collectie:</h4>
+                <div class="ui inverted list">
+                    <div class="item">Jim van Leeuwen</div>
+                </div>
+            </div>
+            <div class="four wide column">
+                <h4 class="ui inverted header">In de boekenkast:</h4>
+                <div class="ui inverted link list">
+                    <a href="/books/" class="item">Boeken</a>
+                    <a href="/series/" class="item">Series</a>
+                    <a href="/authors/" class="item">Schrijvers</a>
+                    <a href="/publishers/" class="item">Uitgevers</a>
+                </div>
+            </div>
+            <div class="six wide column" style="color: #8D8E8E;">
+                Deze website geeft een overzicht van welke literaire werken in de boekenkast staan. Voel je vrij om te zien wat er allemaal in de collectie aanwezig is...
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% block javascript %}
+
+{% endblock %}
+</body>
+
+</html>

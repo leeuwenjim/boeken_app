@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<style>
+.book_grid {
+display: grid;
+grid-template-columns: 5% 15rem calc(90% - 30px - 15rem) 5%;
+grid-template-rows: 1fr;
+grid-column-gap: 10px;
+grid-row-gap: 0px;
+}
+.book_filter_grid {
+display: grid;
+grid-template-columns: 5% 90% 5%;
+grid-template-rows: 1fr;
+grid-column-gap: 10px;
+grid-row-gap: 0px;
+}
+.filter_container {
+    margin-left: auto;
+margin-right: 0;
+}
+@media only screen and (max-width: 900px) {
+    .card {
+        width: 190px!important;
+    }
+    .card_image {
+        height: 300px!important;
+    }
+
+}
+</style>
+{% endblock %}
+
+{% block auth_items %}
+    <a class="item" href="/genres/">Genres beheren</a>
+    <div class="item" style="cursor: pointer;" onclick="add_book()">Boek toevoegen</div>
+{% endblock %}
+
+{% block body %}
+
+    <div class="book_filter_grid">
+        <div>&nbsp;</div>
+        <div class="filter_container">
+            <div class="ui selection dropdown">
+                <input type="hidden" name="ordering" id="ordering">
+                <div class="default text">Sorteer op</div>
+                <i class="dropdown icon"></i>
+                <div class="menu">
+                    <div class="item" data-value="title">Titel <i class="down arrow icon"></i></div>
+                    <div class="item" data-value="-title">Titel <i class="up arrow icon"></i></div>
+                    <div class="item" data-value="original_title">Originele titel <i class="down arrow icon"></i></div>
+                    <div class="item" data-value="-original_title">Originele titel <i class="up arrow icon"></i></div>
+                    <div class="item" data-value="publish_year">Publicatie-jaar <i class="down arrow icon"></i></div>
+                    <div class="item" data-value="-publish_year">Publicatie-jaar <i class="up arrow icon"></i></div>
+                </div>
+            </div>
+
+            <div class="ui action input">
+                <input type="text" id="search_field" placeholder="Zoek...">
+                <button class="ui button" onclick="search()">Zoek</button>
+            </div>
+        </div>
+        <div>&nbsp;</div>
+    </div>
+
+    <div class="ui hidden divider"></div>
+
+    <div class="book_grid">
+        <div>&nbsp;</div>
+        <div>
+            <div class="ui vertical menu" id="genre_menu">
+            </div>
+        </div>
+        <div>
+            <div class="ui centered cards" id="book_overview_cards"></div>
+
+            <div class="ui hidden divider"></div>
+
+            <div class="ui center aligned container" id="book_overview_navigation"></div>
+
+            <div class="ui hidden divider"></div>
+        </div>
+        <div>&nbsp;</div>
+    </div>
+
+
+{% if user.is_authenticated %}
+{% include 'mgmt_add_book.html' with get_html=True %}
+{% endif %}
+{% endblock %}
+
+{% block javascript %}
+    <script type="text/javascript" src="/static/js/book_pagination.js?v=3"></script>
+    {% if user.is_authenticated %}
+    {% include 'mgmt_add_book.html' with get_script=True %}
+    {% endif %}
+    <script>
+
+        var pagination = new BookPagination('/api/genre/0/books/', $('#book_overview_cards'), $('#book_overview_navigation'), true);
+        pagination.load_page(1);
+
+        {% if user.is_authenticated %}
+
+        function add_book() {
+            book_modal(
+                () => {
+                    $('#modal_form_confirm_button').text('Toevoegen');
+                    $('#book_modal_header').text('Boek toevoegen');
+
+                    $('#book_form_title_errors').html('');
+                    $('#book_form_original_title_errors').html('');
+                    $('#book_form_isbn_errors').html('');
+                    $('#book_form_publisher_year_errors').html('');
+                    $('#book_form_back_text_errors').html('');
+                    $('#book_form_language_errors').html('');
+                    $('#book_form_genre_errors').html('');
+                    $('#book_form_publisher_errors').html('');
+                    $('#book_form_author_errors').html('');
+
+                    $('#book_form_title').val('');
+                    $('#book_form_original_title').val('');
+                    $('#book_form_publisher_year').val('');
+                    $('#book_form_isbn').val('');
+                    $('#book_form_back_text').val('');
+                    $('#book_form_language').val('NL');
+                    $('#book_form_genre').val('');
+                    $('#book_form_genre_id').val('');
+                    $('#book_form_publisher').val('');
+                    $('#book_form_publisher_id').val('');
+                    $('#author_list').html('');
+
+                    $('#book_form_year_calendar').calendar({type: 'year'});
+                },
+                () => {
+                    pagination.load_page(pagination.current_page);
+                    $('#book_modal').modal('hide');
+                },
+                $.post,
+                '/api/book/'
+            );
+        }
+        {% endif %}
+
+        function generate_item(item_data) {
+            var item_id_name = 'genre_menu_item_' + item_data['id'].toString();
+            var $item = $();
+            var title = item_data['name'] + ' (' + item_data['book_count'] + ')';
+
+            if (item_data['children'].length > 0) {
+                $item = $('<div>', {'class': 'item'}).css('cursor', 'pointer').append(
+                    $('<span>').append(title).on('click', () => {
+                        $('#genre_menu .active').removeClass('active');
+                        $item.addClass('active');
+                        pagination.endpoint = '/api/genre/' + item_data['id'].toString() + '/books/';
+                        pagination.load_page(1);
+                    })
+                );
+
+                var $submenu = $('<div>', {'class': 'menu'});
+                item_data['children'].forEach((sub_item) => {
+                    $submenu.append(generate_item(sub_item));
+                });
+                $item.append($submenu);
+            } else {
+                $item = $('<div>', {'class': (item_data['id'] === 0 ? 'active item' : 'item')})
+                .append(title)
+                .css('cursor', 'pointer')
+                .on('click', () => {
+                    $('#genre_menu .active').removeClass('active');
+                    $item.addClass('active');
+                    pagination.endpoint = '/api/genre/' + item_data['id'].toString() + '/books/';
+                    pagination.load_page(1);
+                });
+            }
+            return $item;
+        }
+
+        function load_genre_menu() {
+            $('#genre_menu').html('');
+            $.get('/api/genre/all/', {}, (data) => {
+                data.forEach((root_genre) => {
+                    $('#genre_menu').append(generate_item(root_genre));
+                });
+            });
+        }
+
+        load_genre_menu();
+
+        $('.ui.dropdown')
+            .dropdown({
+                onChange: (value, text, $choise) => {
+                    pagination.set_filter('order', value);
+                    pagination.load_page(1);
+                }
+        });
+
+        function search() {
+            pagination.set_filter('title', $('#search_field').val());
+            pagination.set_filter('original_title', $('#search_field').val());
+            pagination.load_page(1);
+        }
+
+        $('#search_field').on('keypress',function(e) {
+            if(e.which == 13) {
+                search();
+            }
+        });
+    </script>
+{% endblock %}

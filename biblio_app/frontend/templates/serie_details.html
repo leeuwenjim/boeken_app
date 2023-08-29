@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+
+{% block head %}
+    <style>
+        #book_cards {
+            margin-left: 5% !important;
+            margin-right: 5% !important;
+        }
+    </style>
+{% endblock %}
+
+{% block auth_items %}
+
+    <a class="item" href="/series/{{ serie.id }}/ordering/">Lees volgordes</a>
+    <div class="item" style="cursor: pointer;" onclick="search_book_to_add();">Boek toevoegen</div>
+    <div class="item" style="cursor: pointer;" onclick="edit_serie();">Serie bewerken</div>
+    <div class="confirmation item" style="cursor: pointer;"
+         data-html="<div class='header'>Weet u zeker dat u deze serie wilt verwijderen</div><div class='content'><div class='ui fluid buttons'><div class='ui green button' onclick='delete_serie()'>Ja</div><div class='ui red button deleteconfirm' onclick='hide_all_popups()'>Nee</div></div></div>">
+        Serie verwijderen
+    </div>
+
+{% endblock %}
+
+{% block body %}
+
+    <div class="ui hidden divider"></div>
+
+    <div class="ui container">
+        <h1 class="ui header">{{ serie.name }}
+            {% for author in authors %}{% if forloop.first %}
+                <div class="ui sub header">{% endif %}<a
+                    href="{% url 'biblio-authors-details' author.id %}">{{ author.get_full_name }}</a>
+            {% if forloop.last %}</div>{% endif %}{% endfor %}
+        </h1>
+    </div>
+
+    <div class="ui divider"></div>
+
+    <div class="ui right aligned container">
+        <div class="ui selection dropdown">
+            <input type="hidden" name="ordering" id="ordering">
+            <div class="default text">Sorteer op</div>
+            <i class="dropdown icon"></i>
+            <div class="menu">
+            </div>
+        </div>
+    </div>
+    <div class="ui hidden divider"></div>
+
+    <div class="ui cards" id="book_cards"></div>
+
+    <div class="ui hidden divider"></div>
+
+    {% if user.is_authenticated %}
+        <div class="ui modal" id="serie_modal">
+            <i class="close icon"></i>
+            <div class="header" id="serie_modal_header">Serie toevoegen</div>
+            <div class="scrolling content">
+                <div class="ui form">
+                    <div class="required field">
+                        <label>Naam: </label>
+                        <ul class="ui list" id="serie_form_name_errors" style="color: red;"></ul>
+                        <input type="text" id="serie_form_name" placeholder="Naam" required="required">
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <div class="ui green approve button" id="serie_modal_approve">Toevoegen</div>
+                <div class="ui red deny button">Annuleer</div>
+            </div>
+        </div>
+
+        <div class="ui modal" id="search_book_modal">
+            <div class="header">
+                Zoek een boek
+            </div>
+            <div class="content">
+                <div class="ui form">
+                    <div class="fluid field">
+                        <label>Titel:</label>
+                        <div class="ui search" id="modal_search_book_field">
+                            <div class="ui icon input">
+                                <input class="prompt" type="text" placeholder="Zoek..."/>
+                                <i class="search icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <div class="ui red cancel button">Annuleer</div>
+                <div class="ui green ok button">Ok</div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block javascript %}
+    {% if user.is_authenticated %}
+        <script type="text/javascript" src="/static/js/jquery_put_delete.js"></script>
+    {% endif %}
+    <script>
+        var books = {
+            {% for book in serie.books.all %}
+                '{{ book.id }}': {
+                    'id': {{ book.id }},
+                    'title': '{{ book.title }}',
+                    'original_title': '{{ book.original_title }}',
+                    'cover': {% if book.cover %}'{{ book.cover.url }}'{% else %}null{% endif %},
+                    'authors': [
+                        {% for author in book.authors.all %}
+                            {
+                                'id': {{ author.id }},
+                                'first_name': {% if author.first_name %}'{{ author.first_name }}'
+                                    {% else %}null{% endif %},
+                                'last_name': {% if author.last_name %}'{{ author.last_name }}'
+                                    {% else %}null{% endif %}
+                            },
+                        {% endfor %}
+                    ],
+                    'publisher': {% if book.publisher %}{'id': {{ book.publisher.id }},
+                        'name': '{{ book.publisher.name }}'}{% else %}null{% endif %},
+                    'publish_year': {% if book.publish_year %}{{ book.publish_year }}{% else %}null{% endif %}
+                },
+            {% endfor %}
+        };
+
+        function format_authors(authors_data) {
+            var result = $('<div>', {'class': 'description'});
+            authors_data.forEach((author) => {
+                result.append(
+                    $('<a>', {'href': '/authors/' + author['id'] + '/'}).text(author['first_name'] + ' ' + author['last_name']), ' '
+                );
+            });
+            return result;
+        }
+
+        function render_card(card_data) {
+            return $('<div>', {'class': 'card'}).append(
+                $('<div>', {'class': 'image'}).append(
+                    $('<img>', {
+                        'class': 'card_image',
+                        'src': (card_data['cover'] ? card_data['cover'] : '/static/img/book-placeholder.jpg')
+                    })
+                ),
+                $('<div>', {'class': 'content'}).append(
+                    $('<div>', {'class': 'header'}).text(
+                        card_data['title']
+                    ).css('cursor', 'pointer').on('click', () => {
+                        location.href = "/books/" + card_data['id'] + "/"
+                    }),
+                    $('<div>', {'class': 'meta'}).text(card_data['original_title'] ? card_data['original_title'] : '&nbsp;'),
+                    format_authors(card_data['authors'])
+                ),
+                $('<div>', {'class': 'extra content'}).append(
+                    (
+                        card_data['publisher'] ?
+                            $('<span>').text(card_data['publisher']['name']).css('cursor', 'pointer').on('click', function () {
+                                location.href = "/publishers/" + card_data['publisher']['id'] + "/"
+                            })
+                            :
+                            $()
+                    ),
+                    (card_data['publish_year'] ? ' (' + card_data['publish_year'].toString() + ')' : '')
+                ){% if user.is_authenticated %},
+                $('<div>', {'class': 'ui red button'}).append(
+                    $('<i>', {'class': 'trash icon'}),
+                    'Verwijder'
+                ).on('click', () => { delete_book_from_serie(card_data['id']) })
+            {% endif %}
+            )
+        }
+
+        function render_cards(ordering) {
+
+            var $books = $('#book_cards');
+            var id_ordering = ordering.split(';');
+            if (id_ordering[1].length === 0) {
+                return;
+            }
+            var order = id_ordering[1].split(',');
+            $books.html('');
+            for (var book_id in order) {
+                $books.append(render_card(books[order[book_id]]))
+            }
+        }
+
+        $('.ui.dropdown')
+            .dropdown({
+                values: [
+                    {% for order in ordering %}
+                        {
+                            name: '{{ order.name }}',
+                            value: '{{ order.order }}',
+                            {% if order.id == 0 %}selected: true{% endif %}
+                        },
+                    {% endfor %}
+                ],
+                onChange: function (value, text, $choise) {
+                    render_cards(value);
+                }
+            });
+
+        render_cards('{{ ordering.0.order }}');
+
+        {% if user.is_authenticated %}
+
+            function search_book_to_add() {
+                selected = {
+                    'id': '',
+                    'title': ''
+                };
+                $('#search_book_modal').modal({
+                    closable: false,
+                    allowMultiple: true,
+                    onShow: function () {
+                        $('#modal_search_book_field').search({
+                            apiSettings: {
+                                url: '/api/book/?title={query}',
+                            },
+                            fields: {
+                                results: 'results',
+                                title: 'title'
+                            },
+                            maxResults: 5,
+                            onSelect: function (result, response) {
+                                selected['id'] = result['id'].toString();
+                                selected['title'] = result['title'];
+                            }
+                        }).search('set value', '');
+                    },
+                    onApprove: function () {
+                        $.post(
+                            '/api/serie/{{ serie.id }}/' + selected['id'] + '/',
+                            {},
+                            () => { window.location.reload()}
+                        ).fail(
+                            () => {
+                                alert('Het boek kon helaas niet toegevoegd worden op dit moment')
+                            }
+                        );
+                        return false;
+                    }
+                }).modal('show');
+            }
+
+            function delete_book_from_serie(book_id) {
+                $.delete(
+                    '/api/serie/{{ serie.id }}/' + book_id + '/',
+                    {},
+                    () => { window.location.reload()}
+                ).fail(
+                    () => {
+                        alert('Het boek kon helaas niet verwijderd worden op dit moment')
+                    }
+                );
+            }
+
+            $('.confirmation').popup({
+                inline: true,
+                hoverable: true,
+                position: 'bottom left',
+                delay: {
+                    show: 50,
+                    hide: 200
+                }
+            });
+
+            function hide_all_popups() {
+                $('.confirmation').popup('hide all');
+            }
+
+            function delete_serie() {
+                $.delete(
+                    '/api/serie/{{ serie.id }}/',
+                    {},
+                    () => {
+                        location.href = '/series/';
+                    }
+                );
+            }
+
+            function edit_serie() {
+                $('#serie_modal').modal({
+                    closable: false,
+                    onShow: () => {
+                        $('#serie_modal_header').text('Serie bewerken');
+                        $('#serie_modal_approve').text('Bewerk');
+                        $('#serie_form_name_errors').html('');
+                        $('#serie_form_name').val('{{ serie.name }}');
+                    },
+                    onApprove: () => {
+                        $('#serie_form_name_errors').html('');
+                        $.put(
+                            '/api/serie/{{ serie.id }}/',
+                            {'name': $('#serie_form_name').val()},
+                            () => {
+                                window.location.reload();
+                            }
+                        ).fail((response) => {
+                            if (response.status == 400) {
+                                var data = response.responseJSON;
+                                if ('name' in data) {
+                                    $('#serie_form_name_errors').html('');
+                                    data['name'].forEach((name_error) => {
+                                        $('#serie_form_name_errors').append(
+                                            $('<li>').text(name_error)
+                                        );
+                                    })
+                                }
+                            }
+                            ;
+
+                        });
+                        return false;
+                    }
+                }).modal('show');
+            }
+        {% endif %}
+    </script>
+
+{% endblock %}

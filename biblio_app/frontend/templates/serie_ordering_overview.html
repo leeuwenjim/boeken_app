@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block auth_items %}
+    <div class="item" onclick="location.href='/series/{{ serie.id }}/ordering/new/'">Volgorde toevoegen</div>
+
+{% endblock %}
+
+{% block body %}
+
+    <div class="ui container">
+        <a href="/series/{{ serie.id }}/" class="ui button">Terug</a>
+    </div>
+
+    <div class="ui container">
+        <h2>Serie volgordes voor: {{ serie.name }}</h2>
+        <table class="ui striped table">
+            <thead>
+                <tr>
+                    <th>Naam</th>
+                    <th class="one wide">&nbsp;</th>
+                    <th class="one wide">&nbsp;</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Publicatie</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
+                {% for order in serie.seriesordering_set.all %}
+                <tr>
+                    <td>{{ order.ordering_name }}</td>
+                    <td class="center aligned"><div class="ui blue icon button" onclick="location.href='/series/{{ serie.id }}/ordering/{{ order.id }}/'"><i class="small pencil icon"></i></div></td>
+                    <td class="center aligned"><div class="ui red icon button" onclick="delete_ordering({{ order.id }})"><i class="small trash icon"></i></div></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+{% endblock %}
+
+{% block javascript %}
+    <script type="text/javascript" src="/static/js/jquery_put_delete.js"></script>
+    <script>
+    function delete_ordering(order_id) {
+        $.delete(
+            '/api/serie/order/' + order_id.toString() + '/',
+            {},
+            () => {
+                window.location.reload();
+            }
+        )
+    }
+    </script>
+{% endblock %}

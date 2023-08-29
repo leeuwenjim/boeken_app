@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block auth_items %}
+    <div class="item" style="cursor: pointer;" onclick="add_author()">Schrijver toevoegen</div>
+{% endblock %}
+
+{% block body %}
+
+    <div class="ui container">
+        <h1 class="ui header">Schrijvers</h1>
+
+        <div class="ui right aligned container">
+
+            <div class="ui selection dropdown">
+                <input type="hidden" name="ordering" id="ordering">
+                <div class="default text">Sorteer op</div>
+                <i class="dropdown icon"></i>
+                <div class="menu">
+                    <div class="item" data-value="full_name">Naam <i class="down arrow icon"></i></div>
+                    <div class="item" data-value="-full_name">Naam <i class="up arrow icon"></i></div>
+                    <div class="item" data-value="book_count">Aantal boeken <i class="down arrow icon"></i></div>
+                    <div class="item" data-value="-book_count">Aantal boeken <i class="up arrow icon"></i></div>
+                </div>
+            </div>
+
+            <div class="ui action input">
+                <input type="text" id="search_field" placeholder="Zoek...">
+                <button class="ui button" onclick="search()">Zoek</button>
+            </div>
+        </div>
+
+
+        Aantal resultaten: <span id="result_count"></span>
+        <table class="ui selectable celled table">
+            <thead>
+                <tr>
+                    <th class="twelve wide">Naam</th>
+                    <th>Aantal boeken</th>
+                    <th class="one wide">&nbsp;</th>
+                    {% if user.is_authenticated %}<th class="one wide">&nbsp;</th>
+                    <th class="one wide">&nbsp;</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody id="author_data"></tbody>
+        </table>
+
+        <div class="ui center aligned container" id="author_navigation"></div>
+    </div>
+
+{% if user.is_authenticated %}
+    <div class="ui modal" id="author_modal">
+        <i class="close icon"></i>
+        <div class="header" id="author_header">Author toevoegen</div>
+        <div class="content">
+            <div class="ui form">
+                <div class="field">
+                    <label>Alias voor:</label>
+                    <div class="ui action input">
+                        <input type="text" disabled="disabled" id="author_form_alias_for_name" placeholder="Alias voor...">
+                        <button class="ui button" onclick="search_author()">Zoek</button>
+                        <button class="ui button" onclick="$('#author_form_alias_for_name').val('');$('#author_form_alias_for_id').val('');">Maak leeg</button>
+                    </div>
+                    <input type="hidden" id="author_form_alias_for_id">
+                </div>
+                <div class="required field">
+                    <label>Voornaam: </label>
+                    <ul class="ui list" id="author_form_first_name_errors" style="color: red;"></ul>
+                    <input type="text" name="author_first_name" id="author_form_first_name" placeholder="Voornaam..." required="required">
+                </div>
+                <div class="required field">
+                    <label>Achternaam: </label>
+                    <ul class="ui list" id="author_form_last_name_errors" style="color: red;"></ul>
+                    <input type="text" name="author_last_name" id="author_form_last_name" placeholder="Achternaam..." required="required">
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui green approve button" id="approve_button"></div>
+            <div class="ui red deny button">Annuleer</div>
+        </div>
+    </div>
+
+    <div class="ui modal" id="search_author_modal">
+        <i class="close icon"></i>
+        <div class="header">
+            Zoek een schrijver
+        </div>
+        <div class="content">
+            <div class="ui form">
+                <div class="fluid field">
+                    <label>Zoek schrijver bij naam</label>
+                    <div class="ui search" id="author_search_field">
+                        <div class="ui icon input">
+                            <input class="prompt" type="text" placeholder="Zoek..." />
+                            <i class="search icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui red cancel button">Annuleer</div>
+            <div class="ui green ok button">Ok</div>
+        </div>
+    </div>
+
+{% endif %}
+{% endblock %}
+
+{% block javascript %}
+    <script type="text/javascript" src="/static/js/jquery_put_delete.js"></script>
+    <script type="text/javascript" src="/static/js/table_api_pagination.js?v=4"></script>
+    <script>
+
+        table_api = new ApiTable(
+            '/api/author/',
+            $('#author_data'),
+            [
+                (data) => data['full_name'],
+                (data) => data['book_count'],
+                (data) => $('<a>', {'href': '/authors/'+ data['id'].toString() +'/'}).append($('<i>', {'class': 'ui eye icon'})){% if user.is_authenticated %},
+                (data) => $('<div>', {'class': 'ui orange icon button'}).on('click', () => {edit_author(data['id'], data['first_name'], data['last_name'], data['alias_for'])}).append($('<i>', {'class': 'ui pencil icon'})),
+                (data) => $('<div>', {
+                    'class': 'ui red confirmation icon button',
+                    'data-html': "<div class='header'>Weet u zeker dat u deze schrijver wilt verwijderen</div><div class='content'><div class='ui fluid buttons'><div class='ui green button' onclick='delete_author("+data['id'].toString()+")'>Ja</div><div class='ui red button deleteconfirm' onclick='hide_all_popups()'>Nee</div></div></div>"
+                }).append($('<i>', {'class': 'ui trash icon'})).popup({
+                    inline: true,
+                    hoverable: true,
+                    position: 'bottom left',
+                    delay: {
+                        show: 50,
+                        hide: 200
+                    }
+                }){% endif %}
+            ],
+            $('#author_navigation'),
+            $('#result_count')
+        );
+        table_api.load_page(1);
+
+        $('.ui.dropdown')
+            .dropdown({
+                onChange: function(value, text, $choise) {
+                    table_api.set_filter('order', value);
+                    table_api.load_page(table_api.current_page);
+                }
+        });
+
+        function search() {
+            table_api.set_filter('full_name', $('#search_field').val());
+            table_api.load_page(table_api.current_page);
+        }
+
+        $('#search_field').on('keypress',function(e) {
+            if(e.which == 13) {
+                search();
+            }
+        });
+
+        {% if user.is_authenticated %}
+        function search_author() {
+            selected = {
+                'id': '',
+                'full_name': ''
+            };
+            $('#search_author_modal').modal({
+                closable: false,
+                allowMultiple: true,
+                onShow: function() {
+                    $('#author_search_field').search({
+                        apiSettings: {
+                            url: '/api/author/?full_name={query}',
+                        },
+                        fields: {
+                            results: 'results',
+                            title: 'full_name'
+                        },
+                        maxResults: 5,
+                        onSelect: function(result, response) {
+                            selected['id'] = result['id'].toString();
+                            selected['full_name'] = result['full_name'];
+                        }
+                    });
+                },
+                onApprove: function() {
+                    $('#author_form_alias_for_id').val(selected['id']);
+                    $('#author_form_alias_for_name').val(selected['full_name']);
+                }
+            }).modal('show');
+
+        }
+
+        function show_modal(endpoint, method, on_show_function) {
+            $('#author_modal').modal({
+                onShow: on_show_function,
+                allowMultiple: true,
+                onApprove: () => {
+                    send_data = {
+                        'first_name': $('#author_form_first_name').val(),
+                        'last_name': $('#author_form_last_name').val()
+                    };
+
+                    if ($('#author_form_alias_for_name').val()) {
+                        send_data['alias_for'] = $('#author_form_alias_for_id').val()
+                    }
+
+                    method(endpoint, send_data, () => {
+                        table_api.load_page(table_api.current_page);
+                        $('#author_modal').modal('hide');
+                    }).fail((response) => {
+                        if (response.status == 400) {
+                            var data = response.responseJSON;
+                            if ('first_name' in data) {
+                                $('#publisher_form_first_name_errors').html('');
+                                data['first_name'].forEach((first_name_error) => {
+                                    $('#publisher_form_first_name_errors').append(
+                                        $('<li>').text(first_name_error)
+                                    );
+                                })
+                            }
+                            if ('last_name' in data) {
+                                $('#publisher_form_last_name_errors').html('');
+                                data['last_name'].forEach((last_name_error) => {
+                                    $('#publisher_form_last_name_errors').append(
+                                        $('<li>').text(last_name_error)
+                                    );
+                                })
+                            }
+                        } else {
+                            alert('Server kon de gegevens niet verwerken');
+                        }
+                    });
+                    return false;
+                }
+            }).modal('show');
+        }
+
+        function delete_author(author_id) {
+            var endpoint = '/api/author/' + author_id.toString() + '/';
+            $.delete(endpoint, {}, () => {window.location.reload()})
+        }
+
+        function edit_author(author_id, author_first_name, author_last_name, parent) {
+            show_modal('/api/author/'+author_id.toString()+'/', $.put, () => {
+                $('#author_header').text('Schrijver bewerken');
+                $('#approve_button').text('Bewerken');
+                $('#author_form_first_name').val(author_first_name);
+                $('#author_form_last_name').val(author_last_name);
+                $('#publisher_form_last_name_errors').html('');
+                $('#author_form_first_name_errors').html('');
+                $('#author_form_alias_for_id').val((parent ? parent['id'] : ''));
+                $('#author_form_alias_for_name').val((parent ? parent['first_name'] + ' ' + parent['last_name'] : ''));
+            });
+        }
+
+        function add_author() {
+            show_modal('/api/author/', $.post, () => {
+                $('#author_header').text('Schrijver toevoegen');
+                $('#approve_button').text('Toevoegen');
+                $('#author_form_first_name').val('');
+                $('#author_form_last_name').val('');
+                $('#author_form_first_name_errors').html('');
+                $('#publisher_form_last_name_errors').html('');
+                $('#author_form_alias_for_id').val('');
+                $('#author_form_alias_for_name').val('');
+            });
+        }
+
+
+        function hide_all_popups() {
+            $('.confirmation').popup('hide all');
+        }
+
+
+
+        {% endif %}
+    </script>
+{% endblock %}

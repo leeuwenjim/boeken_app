@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block auth_items %}
+    <div class="item" style="cursor: pointer;" onclick="add_genre()">Genre toevoegen</div>
+{% endblock %}
+
+{% block body %}
+    <div class="ui container">
+        <table class="ui striped table">
+            <thead>
+                <tr>
+                    <th>Naam</th>
+                    <th>Supergenre</th>
+                    <th class="one wide">&nbsp;</th>
+                    <th class="one wide">&nbsp;</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for genre in genres %}
+                <tr>
+                    <td>{{ genre.name }}</td>
+                    <td>{% if genre.parent %}{{ genre.parent.name }}{% else %}-{% endif %}</td>
+                    <td><div class="ui blue icon button" onclick="edit_genre({{ genre.id }}, '{{ genre.name }}', {% if genre.parent %}{{ genre.parent.id }}{% else %}0{% endif %})"><i class="pencil icon"></i></div></td>
+                    <td>
+                        <div class="ui red confirmation icon button"
+                        data-html="<div class='header'>Weet u zeker dat u dit genre wilt verwijderen</div><div class='content'><div class='ui fluid buttons'><div class='ui green button' onclick='delete_genre({{ genre.id }})'>Ja</div><div class='ui red button deleteconfirm' onclick='hide_all_popups()'>Nee</div></div></div>">
+                            <i class="trash icon"></i>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="ui modal" id="genre_modal">
+        <i class="close icon"></i>
+        <div class="header">Genre toevoegen</div>
+        <div class="content">
+            <div class="ui form">
+                <div class="field">
+                    <label>Super-genre</label>
+                    <ul class="ui list" id="genre_form_parent_errors" style="color: red;"></ul>
+                    <select class="ui fluid dropdown" id="genre_form_super_genre">
+                        <option value="0">---</option>
+                        {% for genre in genres %}<option value="{{ genre.id }}">{{ genre.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="required field">
+                    <label>Naam: </label>
+                    <ul class="ui list" id="genre_form_name_errors" style="color: red;"></ul>
+                    <input type="text" name="genre_name" id="genre_form_name" placeholder="Naam..." required="required">
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui green approve button" id="approve_button">Toevoegen</div>
+            <div class="ui red deny button">Annuleer</div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascript %}
+    <script type="text/javascript" src="/static/js/jquery_put_delete.js"></script>
+    <script>
+        function show_genre_modal(endpoint, method, on_show_function) {
+            $('#genre_modal').modal({
+                onShow: on_show_function(),
+                onApprove: () => {
+                    var super_id = $('#genre_form_super_genre').val();
+                    var new_name = $('#genre_form_name').val();
+
+                    var send_data = {
+                        'name': new_name
+                    };
+
+                    if (super_id !== "0"){
+                        send_data['parent'] = parseInt(super_id)
+                    }
+
+                    (method === 'post' ? $.post : $.put)(endpoint, send_data, () => {
+                        location.reload();
+                    }).fail((response) => {
+                        console.log(response);
+                        if (response.status == 400) {
+                            var data = response.responseJSON;
+                            if ('name' in data) {
+                                $('#genre_form_name_errors').html('');
+                                data['name'].forEach((name_error) => {
+                                    $('#genre_form_name_errors').append(
+                                        $('<li>').text(name_error)
+                                    );
+                                })
+                            }
+                            if ('parent' in data) {
+                                $('#genre_form_parent_errors').html('');
+                                data['parent'].forEach((parent_error) => {
+                                    $('#genre_form_parent_errors').append(
+                                        $('<li>').text(parent_error)
+                                    );
+                                })
+                            }
+                        } else {
+                            alert('Server kon de gegevens niet verwerken');
+                        }
+                    });
+                    return false;
+                },
+                onDeny: () => {
+
+                }
+            }).modal('show');
+        }
+
+        function edit_genre(genre_id, current_name, parent_id) {
+            show_genre_modal('/api/genre/' + genre_id.toString() + '/', 'put', () => {
+                    $('#genre_form_name').val(current_name);
+                    $('#genre_form_super_genre').val(parent_id.toString());
+                    $('#genre_form_name_errors').html('');
+                    $('#genre_form_parent_errors').html('');
+                    $('#approve_button').text('Bewerken')
+            })
+        }
+
+        function add_genre() {
+            show_genre_modal('/api/genre/', 'post', () => {
+                    $('#genre_form_name').val('');
+                    $('#genre_form_super_genre').val('0');
+                    $('#genre_form_name_errors').html('');
+                    $('#genre_form_parent_errors').html('');
+                    $('#approve_button').text('Toevoegen')
+            })
+        }
+
+        $('.confirmation').popup({
+            inline: true,
+            hoverable: true,
+            position: 'bottom left',
+            delay: {
+                show: 50,
+                hide: 200
+            }
+        });
+
+        function hide_all_popups() {
+            $('.confirmation').popup('hide all');
+        }
+
+
+        function delete_genre(genre_id) {
+            var endpoint = '/api/genre/' + genre_id.toString() + '/';
+            $.delete(endpoint, {}, () => {window.location.reload()})
+        }
+
+    </script>
+{% endblock %}

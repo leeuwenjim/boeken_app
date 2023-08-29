@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block head %}
+    <style>
+        .scrolling {
+            flex-wrap: nowrap !important;
+            overflow-x: scroll !important;
+            -webkit-overflow-scrolling: touch !important;
+            overflow-scrolling: touch !important;
+        }
+
+        .scrolling > .ui.card {
+            flex: 0 0 250px !important;
+        }
+    </style>
+{% endblock %}
+
+{% block auth_items %}
+
+    <div class="item" id="cover_edit_item" style="cursor: pointer;{% if book.cover %}{% else %} display: None;{% endif %}" onclick="set_cover();">Cover bewerken</div>
+    <div class="confirmation item" id="cover_delete_item" style="cursor: pointer;{% if book.cover %}{% else %} display: None;{% endif %}"
+         data-html="<div class='header'>Weet u zeker dat u de cover wilt verwijderen</div><div class='content'><div class='ui fluid buttons'><div class='ui green button' onclick='delete_cover()'>Ja</div><div class='ui red button deleteconfirm' onclick='hide_all_popups()'>Nee</div></div></div>">
+        Cover verwijderen
+    </div>
+        <div class="item" id="cover_add_item" style="cursor: pointer;{% if book.cover %} display: None;{% else %}{% endif %}" onclick="set_cover();">Cover toevoegen</div>
+    <div class="item" style="cursor: pointer;" onclick="edit_book()">Boek bewerken</div>
+    <div class="confirmation item" style="cursor: pointer;"
+         data-html="<div class='header'>Weet u zeker dat u dit boek wilt verwijderen</div><div class='content'><div class='ui fluid buttons'><div class='ui green button' onclick='delete_book({{ book.id }})'>Ja</div><div class='ui red button deleteconfirm' onclick='hide_all_popups()'>Nee</div></div></div>">
+        Boek verwijderen
+    </div>
+{% endblock %}
+
+{% block body %}
+    <div class="ui container">
+        <a href="{% url 'biblio-books' %}" class="ui button">Terug</a>
+    </div>
+
+    <div class="ui hidden divider"></div>
+
+    <div class="ui container">
+        <h1 class="ui header">{{ book.title }} {% if book.original_title %}({{ book.original_title }}){% endif %}
+            {% for author in book.authors.all %}{% if forloop.first %}
+                <div class="ui sub header">{% endif %}<a
+                    href="{% url 'biblio-authors-details' author.id %}">{{ author.get_full_name }}</a>
+            {% if forloop.last %}</div>{% endif %}{% endfor %}
+        </h1>
+    </div>
+
+    <div class="ui divider"></div>
+
+    <div class="ui container">
+        <div class="ui two column grid">
+            <div class="column">
+                <img class="ui centered medium image" id="large_cover_image"
+                     src="{% if book.cover %}{{ book.cover.url }}{% else %}/static/img/book-placeholder.jpg{% endif %}">
+            </div>
+            <div class="column">
+                <b>Uitgever:</b> {% if book.publisher %}
+                <a href="{% url 'biblio-publisher-details' book.publisher.id %}">{{ book.publisher.name }}</a>{% else %}
+                Onbekend{% endif %}{% if book.publish_year %} ({{ book.publish_year }}){% endif %}<br/>
+                <b>Taal:</b> {{ book.get_language_display }}<br/>
+                <b>ISBN:</b> {% firstof book.formatted_isbn 'Onbekend' %}
+                <div class="ui hidden divider"></div>
+                {{ book.back_text|linebreaksbr }}
+            </div>
+
+        </div>
+    </div>
+
+    <div class="ui divider"></div>
+
+    {% for serie in book.serie_set.all %}
+        <div class="ui container">
+            <h2 onclick="location.href='{% url 'biblio-serie-details' serie.id %}'"
+                style="cursor: pointer;">{{ serie.name }}</h2><br/>
+            {% for serie_book in serie.get_books %}{% if forloop.first %}
+                <div class="ui scrolling cards">{% endif %}
+            <div class="ui card">
+                <a class="image" href="{% url 'biblio-books-details' serie_book.id %}">
+                    <img class="card_image" src="
+                            {% if serie_book.cover %}{{ serie_book.cover.url }}{% else %}/static/img/book-placeholder.jpg{% endif %}">
+                </a>
+                <div class="content">
+                    <a class="header" href="{% url 'biblio-books-details' serie_book.id %}">{{ serie_book.title }}</a>
+                </div>
+            </div>
+            {% if forloop.last %}</div>{% endif %}
+            {% endfor %}
+        </div>{% endfor %}
+    <div class="ui hidden divider"></div>
+
+
+    {% if user.is_authenticated %}
+        {% include 'mgmt_add_book.html' with get_html=True %}
+        <div class="ui modal" id="cover_modal">
+            <i class="close icon"></i>
+            <div class="header">
+                Selecteer een cover
+            </div>
+            <div class="content">
+                <form id="cover_form">
+                    <b>Cover</b><br />
+                    <div class="ui file input">
+                        <input type="file" id="cover_field" name="cover">
+                    </div>
+                </form>
+            </div>
+            <div class="actions">
+                <div class="ui red cancel button">Annuleer</div>
+                <div class="ui green ok button">Ok</div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block javascript %}
+
+    {% if user.is_authenticated %}
+        <script type="text/javascript" src="/static/js/jquery_put_delete.js?v=1"></script>
+        <script type="text/javascript" src="/static/js/upload_file.js"></script>
+        {% include 'mgmt_add_book.html' with get_script=True %}
+        <script>
+
+            function delete_book(book_id) {
+                $.delete('/api/book/{{ book.id }}/', {}, () => { window.location.href = '/books/';});
+            }
+
+            function set_cover() {
+                $('#cover_modal').modal({
+                    closable: false,
+                    onShow: () => {
+                        $('#cover_field').val('');
+                    },
+                    onApprove: function() {
+
+                        var file = $('#cover_field')[0].files[0];
+
+                        if (file) {
+                            var upload = new Upload(file, 'cover', 'PUT', '/api/book/{{ book.id }}/cover/', (data) => {
+                                $('#cover_add_item').css('display', 'none');
+                                $('#cover_edit_item').css('display', 'flex');
+                                $('#cover_delete_item').css('display', 'flex');
+                                $('#large_cover_image').attr('src', data['cover']);
+                                $('#cover_modal').modal('hide');
+                            }, (error) => {
+                                alert('Kon het bestand niet verwerken')
+                            });
+                            upload.send()
+                        } else {
+                            alert('Er is geen bestand geselecteerd');
+                        }
+
+                        return false;
+                    }
+                }).modal('show');
+            }
+
+            function delete_cover() {
+                $.delete('/api/book/{{ book.id }}/cover/', {}, () => {
+                    $('#cover_add_item').css('display', 'flex');
+                    $('#cover_edit_item').css('display', 'none');
+                    $('#cover_delete_item').css('display', 'none');
+                    $('#large_cover_image').attr('src', '/static/img/book-placeholder.jpg');
+                });
+            }
+
+            $('.confirmation').popup({
+                inline: true,
+                hoverable: true,
+                position: 'bottom left',
+                delay: {
+                    show: 50,
+                    hide: 200
+                }
+            });
+
+            function hide_all_popups() {
+                $('.confirmation').popup('hide all');
+            }
+
+
+            function edit_book() {
+                book_modal(
+                    () => {
+                        $('#modal_form_confirm_button').text('Bewerken');
+                        $('#book_modal_header').text('Boek bewerken');
+
+                        $('#book_form_title_errors').html('');
+                        $('#book_form_original_title_errors').html('');
+                        $('#book_form_isbn_errors').html('');
+                        $('#book_form_publisher_year_errors').html('');
+                        $('#book_form_back_text_errors').html('');
+                        $('#book_form_language_errors').html('');
+                        $('#book_form_genre_errors').html('');
+                        $('#book_form_publisher_errors').html('');
+                        $('#book_form_author_errors').html('');
+
+                        $('#book_form_title').val('{{ book.title }}');
+                        $('#book_form_original_title').val('{{ book.original_title }}');
+                        $('#book_form_publisher_year').val('{{ book.publish_year }}');
+                        $('#book_form_isbn').val('{{ book.isbn }}');
+                        $('#book_form_back_text').val('{{ book.back_text|escapejs }}');
+                        $('#book_form_language').val('{{ book.language }}');
+                        $('#book_form_genre').val('{% if book.genre %}{{ book.genre.name }}{% endif %}');
+                        $('#book_form_genre_id').val('{% if book.genre %}{{ book.genre.id }}{% endif %}');
+                        $('#book_form_publisher').val('{% if book.publisher %}{{ book.publisher.name }}{% endif %}');
+                        $('#book_form_publisher_id').val('{% if book.publisher %}{{ book.publisher.id }}{% endif %}');
+                        $('#author_list').html('');
+                        {% for author in book.authors.all %}
+                        $li_author_{{ author.id }} = $('<li>');
+                        $li_author_{{ author.id }}.append(
+                            $('<div>', {'class': 'ui small icon red button'}).append(
+                                $('<i>', {'class': 'small trash icon'})
+                            ).on('click', () => {
+                                $li_author_{{ author.id }}.remove()
+                            }),
+                            (' {{ author.get_full_name }}')
+                        );
+
+                        $li_author_{{ author.id }}.data('id', '{{ author.id }}');
+
+                        $('#author_list').append($li_author_{{ author.id }});
+
+                        {% endfor %}
+
+                        $('#book_form_year_calendar').calendar({type: 'year'});
+                    },
+                    () => {
+                        window.location.reload();
+                    },
+                    $.put,
+                    '/api/book/{{ book.id }}/'
+                );
+            }
+        </script>
+    {% endif %}
+{% endblock %}

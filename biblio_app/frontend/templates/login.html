@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+    <div class="ui one column stackable center aligned page grid">
+        <div class="column eight wide">
+            <form class="ui form" action="" method="post">
+                {% csrf_token %}
+                <div class="ui hidden divider"></div>
+                <h1 class="ui dividing header">Aanmelden</h1>
+                {% if error_message %}
+                <div class="ui negative message">
+                    <div class="header">
+                    Aanmelding niet gelukt
+                    </div>
+                    <p>{{ error_message }}</p>
+                </div>
+                {% endif %}
+                <div class="field">
+                    <input name="username" placeholder="Gebruikersnaam" type="text" value="{{ username }}">
+                </div>
+                <div class="field">
+                    <input name="password" placeholder="Wachtwoord" type="password">
+                </div>
+                <div class="ui hidden divider"></div>
+                <button class="fluid ui primary button">Aanmelden</button>
+            </form>
+        </div>
+    </div>
+
+{% endblock %}

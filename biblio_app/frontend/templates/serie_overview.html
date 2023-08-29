@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block auth_items %}
+    <div class="item" style="cursor: pointer;" onclick="add_serie()">Serie toevoegen</div>
+{% endblock %}
+
+{% block body %}
+
+    <div class="ui container">
+        <h1 class="ui header">Series</h1>
+
+        <div class="ui right aligned container">
+
+            <div class="ui selection dropdown">
+                <input type="hidden" name="ordering" id="ordering">
+                <div class="default text">Sorteer op</div>
+                <i class="dropdown icon"></i>
+                <div class="menu">
+                    <div class="item" data-value="name">Naam <i class="down arrow icon"></i></div>
+                    <div class="item" data-value="-name">Naam <i class="up arrow icon"></i></div>
+                    <div class="item" data-value="book_count">Aantal boeken <i class="down arrow icon"></i></div>
+                    <div class="item" data-value="-book_count">Aantal boeken <i class="up arrow icon"></i></div>
+                </div>
+            </div>
+
+            <div class="ui action input">
+                <input type="text" id="search_field" placeholder="Zoek...">
+                <button class="ui button" onclick="search()">Zoek</button>
+            </div>
+        </div>
+        Aantal resultaten: <span id="result_count"></span>
+        <table class="ui selectable celled table">
+            <thead>
+            <tr>
+                <th class="twelve wide">Naam</th>
+                <th>Aantal boeken</th>
+                <th class="one wide">&nbsp;</th>
+            </tr>
+            </thead>
+            <tbody id="serie_data"></tbody>
+        </table>
+
+        <div class="ui center aligned container" id="serie_navigation"></div>
+    </div>
+
+    {% if user.is_authenticated %}
+    <div class="ui modal" id="serie_modal">
+        <i class="close icon"></i>
+        <div class="header" id="serie_modal_header">Serie toevoegen</div>
+        <div class="scrolling content">
+            <div class="ui form">
+                <div class="required field">
+                    <label>Naam: </label>
+                    <ul class="ui list" id="serie_form_name_errors" style="color: red;"></ul>
+                    <input type="text" id="serie_form_name" placeholder="Naam" required="required">
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui green approve button" id="serie_modal_approve">Toevoegen</div>
+            <div class="ui red deny button">Annuleer</div>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
+
+{% block javascript %}
+    <script type="text/javascript" src="/static/js/table_api_pagination.js?v=4"></script>
+    <script>
+        table_api = new ApiTable(
+            '/api/serie/',
+            $('#serie_data'),
+            [
+                (data) => data['name'],
+                (data) => data['book_count'],
+                (data) => $('<a>', {'href': '/series/' + data['id'].toString() + '/'}).append($('<i>', {'class': 'ui eye icon'}))
+            ],
+            $('#serie_navigation'),
+            $('#result_count')
+        );
+        table_api.load_page(1);
+
+        $('.ui.dropdown')
+            .dropdown({
+                onChange: function (value, text, $choise) {
+                    table_api.set_filter('order', value);
+                    table_api.load_page(table_api.current_page);
+                }
+            });
+
+        function search() {
+            table_api.set_filter('name', $('#search_field').val());
+            table_api.load_page(table_api.current_page);
+        }
+
+        $('#search_field').on('keypress', function (e) {
+            if (e.which == 13) {
+                search();
+            }
+        });
+
+        {% if user.is_authenticated %}
+        function add_serie() {
+            $('#serie_modal').modal({
+                closable: false,
+                onShow: () => {
+                    $('#serie_modal_header').text('Serie toevoegen');
+                    $('#serie_modal_approve').text('Toevoegen');
+                    $('#serie_form_name_errors').html('');
+                    $('#serie_form_name').val('');
+                },
+                onApprove: () => {
+                    $('#serie_form_name_errors').html('');
+                    $.post(
+                        '/api/serie/',
+                        {'name': $('#serie_form_name').val()},
+                        () => {
+                            $('#serie_modal').modal('hide');
+                            table_api.load_page(table_api.current_page);
+                        }
+                    ).fail((response) => {
+                        if (response.status == 400) {
+                            var data = response.responseJSON;
+                            if ('name' in data) {
+                                $('#serie_form_name_errors').html('');
+                                data['name'].forEach((name_error) => {
+                                    $('#serie_form_name_errors').append(
+                                        $('<li>').text(name_error)
+                                    );
+                                })
+                            }
+                        };
+
+                    });
+                    return false;
+                }
+            }).modal('show');
+        }
+        {% endif %}
+    </script>
+{% endblock %}

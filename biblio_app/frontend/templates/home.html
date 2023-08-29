@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+    <div class="ui container">
+        <div class="ui big blue button" onclick="location.href='/books/'">Bekijk boeken</div>
+        <div class="ui big blue right floated button" onclick="location.href='/series/'">Bekijk series</div>
+    </div>
+
+    <div class="ui hidden divider"></div>
+
+    <div class="ui centered cards">
+        {% for book in sample %}
+            <div class="card">
+                <div class="image">
+                    <img class="card_image" src="{% if book.cover %}{{ book.cover.url }}{% else %}/static/img/book-placeholder.jpg{% endif %}">
+                </div>
+                <div class="content">
+                    <div class="header" style="cursor: pointer;" onclick="location.href='{% url 'biblio-books-details' book.id %}'">
+                        {{ book.title }}
+                    </div>
+                    <div class="meta">
+                        {% if book.original_title %}{{ book.original_title }}{% else %}&nbsp;{% endif %}
+                    </div>
+                    <div class="description">
+                        {% for author in book.authors.all %}
+                            <a href="{% url 'biblio-authors-details' author.id  %}">{{ author.get_full_name }} </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="extra content">
+                    {% if book.publisher %}<span style="cursor: pointer;" onclick="location.href='{% url 'biblio-publisher-details' book.publisher.id %}'">{{ book.publisher.name }}</span>{% endif %} {% if book.publish_year %}({{ book.publish_year }}){% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="ui hidden divider"></div>
+
+{% endblock %}

@@ -1,0 +1,301 @@
+{% if get_html %}
+    <div class="ui modal" id="book_modal">
+        <i class="close icon"></i>
+        <div class="header" id="book_modal_header">Boek toevoegen</div>
+        <div class="scrolling content">
+            <div class="ui form">
+                <div class="required field">
+                    <label>Titel: </label>
+                    <ul class="ui list" id="book_form_title_errors" style="color: red;"></ul>
+                    <input type="text" id="book_form_title" placeholder="Titel" required="required">
+                </div>
+                <div class="field">
+                    <label>Originele titel: </label>
+                    <ul class="ui list" id="book_form_original_title_errors" style="color: red;"></ul>
+                    <input type="text" id="book_form_original_title" placeholder="Originele titel">
+                </div>
+                <div class="field">
+                    <label>Genre:</label>
+                    <ul class="ui list" id="book_form_genre_errors" style="color: red;"></ul>
+                    <div class="ui action input">
+                        <input type="text" disabled="disabled" id="book_form_genre" placeholder="Genre">
+                        <button class="ui button" onclick="search_book_genre()">Zoek</button>
+                        <button class="ui button" onclick="$('#book_form_genre').val('');$('#book_form_genre_id').val('');">Maak leeg</button>
+                    </div>
+                    <input type="hidden" id="book_form_genre_id">
+                </div>
+                <div class="field">
+                    <label>Uitgever:</label>
+                    <ul class="ui list" id="book_form_publisher_errors" style="color: red;"></ul>
+                    <div class="ui action input">
+                        <input type="text" disabled="disabled" id="book_form_publisher" placeholder="Genre">
+                        <button class="ui button" onclick="search_book_publisher()">Zoek</button>
+                        <button class="ui button" onclick="$('#book_form_publisher').val('');$('#book_form_publisher_id').val('');">Maak leeg</button>
+                    </div>
+                    <input type="hidden" id="book_form_publisher_id">
+                </div>
+                <div class="field">
+                    <label>Jaar publicatie: </label>
+                    <ul class="ui list" id="book_form_publisher_year_errors" style="color: red;"></ul>
+                    <div class="ui calendar" id="book_form_year_calendar">
+                        <div class="ui input left icon">
+                            <i class="calendar icon"></i>
+                            <input type="text" placeholder="Publicatie jaar" id="book_form_publisher_year">
+                        </div>
+                    </div>
+                </div>
+
+                <b>Schrijvers:</b><div class="ui right floated blue button" onclick="search_author()">Toevoegen</div>
+                <ul class="ui list" id="book_form_author_errors" style="color: red;"></ul>
+                <ul id="author_list">
+
+                </ul>
+                <div class="field">
+                    <label>Taal:</label>
+                    <ul class="ui list" id="book_form_language_errors" style="color: red;"></ul>
+                    <select class="ui fluid dropdown" id="book_form_language">
+                        <option value="NL">Nederlands</option>
+                        <option value="GB">Engels</option>
+                        <option value="SE">Zweeds</option>
+                        <option value="DE">Duits</option>
+                        <option value="FR">Frans</option>
+                        <option value="ES">Spaans</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>ISBN: </label>
+                    <ul class="ui list" id="book_form_isbn_errors" style="color: red;"></ul>
+                    <input type="text" id="book_form_isbn" placeholder="isbn/ean...." required="required">
+                </div>
+                <div class="field">
+                    <label>Text</label>
+                    <ul class="ui list" id="book_form_back_text_errors" style="color: red;"></ul>
+                    <textarea id="book_form_back_text"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui green approve button" id="modal_form_confirm_button">Toevoegen</div>
+            <div class="ui red deny button">Annuleer</div>
+        </div>
+    </div>
+
+     <div class="ui modal" id="search_modal">
+        <div class="header" id="genre_publisher_search_header">
+            Zoek een genre
+        </div>
+        <div class="content">
+            <div class="ui form">
+                <div class="fluid field">
+                    <label>Zoekterm:</label>
+                    <div class="ui search" id="modal_search_field">
+                        <div class="ui icon input">
+                            <input class="prompt" type="text" placeholder="Zoek..." />
+                            <i class="search icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui red cancel button">Annuleer</div>
+            <div class="ui green ok button">Ok</div>
+        </div>
+    </div>
+
+    <div class="ui modal" id="search_author_modal">
+        <i class="close icon"></i>
+        <div class="header">
+            Zoek een schrijver
+        </div>
+        <div class="content">
+            <div class="ui form">
+                <div class="fluid field">
+                    <label>Zoek schrijver bij naam</label>
+                    <div class="ui search" id="author_search_field">
+                        <div class="ui icon input">
+                            <input class="prompt" type="text" placeholder="Zoek..." />
+                            <i class="search icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui red cancel button">Annuleer</div>
+            <div class="ui green ok button">Ok</div>
+        </div>
+    </div>
+{% endif %}
+
+{% if get_script %}
+<script>
+           function search_book_genre() {
+            selected = {
+                'id': '',
+                'name': ''
+            };
+            $('#search_modal').modal({
+                closable: false,
+                allowMultiple: true,
+                onShow: function() {
+                    $('#genre_publisher_search_header').text('Zoek een genre');
+                    $('#modal_search_field').search({
+                        apiSettings: {
+                            url: '/api/genre/?name={query}',
+                        },
+                        fields: {
+                            results: 'results',
+                            title: 'name'
+                        },
+                        maxResults: 5,
+                        onSelect: function(result, response) {
+                            selected['id'] = result['id'].toString();
+                            selected['name'] = result['name'];
+                        }
+                    }).search('set value', '');
+                },
+                onApprove: function() {
+                    $('#book_form_genre').val(selected['name']);
+                    $('#book_form_genre_id').val(selected['id']);
+                }
+            }).modal('show');
+        }
+        function search_book_publisher() {
+            selected = {
+                'id': '',
+                'name': ''
+            };
+            $('#search_modal').modal({
+                closable: false,
+                allowMultiple: true,
+                onShow: function() {
+                    $('#genre_publisher_search_header').text('Zoek een uitgever');
+                    $('#modal_search_field').search({
+                        apiSettings: {
+                            url: '/api/publisher/?name={query}',
+                        },
+                        fields: {
+                            results: 'results',
+                            title: 'name'
+                        },
+                        maxResults: 5,
+                        onSelect: function(result, response) {
+                            selected['id'] = result['id'].toString();
+                            selected['name'] = result['name'];
+                        }
+                    }).search('set value', '');
+                },
+                onApprove: function() {
+                    $('#book_form_publisher').val(selected['name']);
+                    $('#book_form_publisher_id').val(selected['id']);
+                }
+            }).modal('show');
+        }
+
+        function search_author() {
+            selected = {
+                'id': '',
+                'full_name': ''
+            };
+            $('#search_author_modal').modal({
+                closable: false,
+                allowMultiple: true,
+                onShow: function() {
+                    $('#author_search_field').search({
+                        apiSettings: {
+                            url: '/api/author/?full_name={query}',
+                        },
+                        fields: {
+                            results: 'results',
+                            title: 'full_name'
+                        },
+                        maxResults: 5,
+                        onSelect: function(result, response) {
+                            selected['id'] = result['id'].toString();
+                            selected['full_name'] = result['full_name'];
+                        }
+                    });
+                },
+                onApprove: function() {
+                    var $li_author = $('<li>');
+
+                    $li_author.append(
+                        $('<div>', {'class': 'ui small icon red button'}).append(
+                            $('<i>', {'class': 'small trash icon'})
+                        ).on('click', () => {
+                            $li_author.remove()
+                        }),
+                        (' ' + selected['full_name'])
+                    );
+
+                    $li_author.data('id', selected['id']);
+
+                    $('#author_list').append($li_author);
+                }
+            }).modal('show');
+
+        }
+
+
+        function book_modal(onshow, success_function, method, endpoint) {
+            $('#book_modal').modal({
+                onShow: onshow,
+                onApprove: () => {
+                    var book_data = {
+                        'title': $('#book_form_title').val(),
+                        'original_title': $('#book_form_original_title').val(),
+                        'publisher': $('#book_form_publisher_id').val(),
+                        'publish_year': $('#book_form_publisher_year').val(),
+                        'genre': $('#book_form_genre_id').val(),
+                        'isbn': $('#book_form_isbn').val(),
+                        'language': $('#book_form_language').val(),
+                        'back_text': $('#book_form_back_text').val(),
+                    };
+                    var author_ids = [];
+                    $('#author_list').children('li').each(function() {
+                        author_ids.push($(this).data('id'))
+                    });
+
+                    book_data['authors'] = author_ids.join(',');
+
+                    method(endpoint, book_data, success_function).fail((response) => {
+                        $('#book_form_title_errors').html('');
+                        $('#book_form_original_title_errors').html('');
+                        $('#book_form_isbn_errors').html('');
+                        $('#book_form_publisher_year_errors').html('');
+                        $('#book_form_back_text_errors').html('');
+                        $('#book_form_language_errors').html('');
+                        $('#book_form_genre_errors').html('');
+                        $('#book_form_publisher_errors').html('');
+                        $('#book_form_author_errors').html('');
+
+                        const error_fields = {
+                            'title': '#book_form_title_errors',
+                            'original_title': '#book_form_original_title_errors',
+                            'publisher': '#book_form_publisher_errors',
+                            'publish_year': '#book_form_publisher_year_errors',
+                            'genre': '#book_form_genre_errors',
+                            'isbn': '#book_form_isbn_errors',
+                            'language': '#book_form_language_errors',
+                            'back_text': '#book_form_back_text_errors',
+                            'authors': '#book_form_author_errors',
+                        };
+                        Object.keys(response.responseJSON).forEach((key) => {
+                            response.responseJSON[key].forEach((given_error) => {
+                                $(error_fields[key]).append(
+                                    $('<li>').text(given_error)
+                                )
+                            });
+
+                        });
+                    });
+                    return false;
+                },
+                allowMultiple: true
+            }).modal('show');
+
+        }
+</script>
+
+{% endif %}

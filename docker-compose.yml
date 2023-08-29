@@ -1,0 +1,53 @@
+version: '3.2'
+
+services:
+  mysql_db:
+    image: mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: JimDbRootPassBiblioApp
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+    volumes:
+      - type: bind
+        source: ./mysql-data
+        target: /var/lib/mysql
+
+  app:
+    build:
+      context: ./biblio_app
+    image: biblio-app-${VERSION}-${BUILD}
+    restart: always
+    env_file: .env
+    expose:
+      - 8000
+    depends_on:
+      - mysql_db
+    volumes:
+      - type: bind
+        source: ./nginx-data/static
+        target: /app/static_collected
+      - type: bind
+        source: ./nginx-data/media
+        target: /app/media
+
+  nginx:
+    build:
+      context:
+        ./nginx
+    image: nginx-${VERSION}-${BUILD}
+    restart: always
+    env_file: .env
+    ports:
+      - 1340:80
+    depends_on:
+      - app
+    volumes:
+      - type: bind
+        source: ./nginx-data/static
+        target: /home/biblio_app/static
+      - type: bind
+        source: ./nginx-data/media
+        target: /home/biblio_app/media
+ 

@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+    <div class="ui container">
+        <div class="ui button" onclick="location.href='/series/{{ serie.id }}/ordering/'">Terug</div>
+        <div class="ui right floated blue button" onclick="save()">Opslaan</div>
+
+        <h1>Volgorde voor serie: {{ serie.name }}</h1>
+
+        <b>Naam volgorde:</b><br />
+        <ul class="ui list" id="ordering_name_field_errors" style="color: red;"></ul>
+        <div class="ui fluid input">
+            <input type="text" placeholder="Naam...." value="{{ order.ordering_name }}" id="ordering_name_field">
+        </div>
+    </div>
+
+    <div class="ui hidden divider"></div>
+
+    <div class="ui container">
+    <b>Boek volgorde:</b>
+    <ul class="ui list" id="book_order_field_errors" style="color: red;"></ul>
+    </div>
+    <div class="ui container" id="draggable">
+        {% for book in books %}
+        <div class="ui icon message" data-id="{{ book.id }}">
+            <i class="book icon"></i>
+            <div class="content">
+                <div class="header">{{ book.title }}{% if book.publish_year %} ({{ book.publish_year }}){% endif %}</div>
+                {% for author in book.authors.all %}{{ author.get_full_name }} {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="ui hidden divider"></div>
+    &nbsp;
+    <div class="ui hidden divider"></div>
+
+{% endblock %}
+
+{% block javascript %}
+<script type="text/javascript" src="/static/js/jquery_put_delete.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.js"></script>
+    <script>
+    $('#draggable').sortable();
+
+    function save() {
+        var order_data = {
+            'ordering_name': $('#ordering_name_field').val(),
+        };
+
+        var book_ids = [];
+        $('#draggable').children().each(function() {
+            book_ids.push($(this).data('id'))
+        });
+
+        order_data['book_order'] = book_ids;
+
+        $.ajax({
+            url: {% if order %}'/api/serie/order/{{ order.id }}/'{% else %}'/api/serie/{{ serie.id }}/'{% endif %},
+            contentType: 'application/json',
+            data: JSON.stringify(order_data),
+            dataType: 'json',
+            success: function(data){
+                location.href = '/series/{{ serie.id }}/ordering';
+            },
+            error: function(errors){
+                $('#ordering_name_field_errors').html('');
+                if ('ordering_name' in errors) {
+                    errors['ordering_name'].forEach((name_error) => {
+                        $('#ordering_name_field_errors').append(
+                            $('<li>').text(name_error)
+                        );
+                    })
+                }
+                $('#book_order_field_errors').html('');
+                if ('book_order' in errors) {
+                    errors['book_order'].forEach((name_error) => {
+                        $('#book_order_field_errors').append(
+                            $('<li>').text(name_error)
+                        );
+                    })
+                }
+            },
+            processData: false,
+            type: {% if order %}'PUT'{% else %}'POST'{% endif %},
+        });
+
+    }
+    </script>
+{% endblock %}
