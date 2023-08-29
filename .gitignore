@@ -1,4 +1,4 @@
 .env
-mysql_data/*
-ngnix_data/*
+mysql-data/*
+ngnix-data/*
 
